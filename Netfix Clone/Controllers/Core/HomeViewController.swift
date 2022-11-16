@@ -17,6 +17,9 @@ enum Sections: Int{
 
 class HomeViewController: UIViewController {
     
+    private var randomTrendingMovie: Title?
+    private var headerView: HeroHeaderUIview?
+    
     let sectionTitles: [String] = ["Trending Movies", "Trending Tv", "Popular", "Upcoming Movies", "Top Rated"]
     
     private let homeFeedTable: UITableView = {
@@ -36,10 +39,28 @@ class HomeViewController: UIViewController {
         
         configureNavbar()
     
-        let headerView = HeroHeaderUIview(frame: CGRect(x: 0, y: 0, width: view.bounds.width, height: 450))
+         headerView = HeroHeaderUIview(frame: CGRect(x: 0, y: 0, width: view.bounds.width, height: 450))
         homeFeedTable.tableHeaderView = headerView
+        configureHeroHeaderView()
+      
+//        APICaller.shared.getMovie(with: "Harry potter"){
+//            result in
+//        }
         
-        
+    }
+    
+    private func configureHeroHeaderView(){
+        APICaller.shared.getTrendingMovies{
+            result in
+            switch result {
+            case .success(let titles):
+                let selectedTitle = titles.randomElement()
+                self.randomTrendingMovie = titles.randomElement()
+                self.headerView?.configure(with: TitleViewModel(titleName: selectedTitle?.original_title ?? "", posterURL: selectedTitle?.poster_path ?? ""))
+            case .failure(let error):
+                print(error.localizedDescription)
+            }
+        }
     }
     
     
@@ -79,6 +100,7 @@ extension HomeViewController: UITableViewDelegate, UITableViewDataSource
         guard let cell = tableView.dequeueReusableCell(withIdentifier: CollectionViewTableViewCell.identifier, for: indexPath) as? CollectionViewTableViewCell else {
             return UITableViewCell()
         }
+        cell.delegate = self
         
         switch indexPath.section{
         case Sections.TrendingMovies.rawValue:
@@ -161,10 +183,21 @@ extension HomeViewController: UITableViewDelegate, UITableViewDataSource
         
     }
     
-    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let defaultOffset = view.safeAreaInsets.top
         let offset = scrollView.contentOffset.y + defaultOffset
         
         navigationController?.navigationBar.transform = .init(translationX: 0, y: min(0,-offset))
+    }
+}
+extension HomeViewController: CollectionViewTableViewCellDelegate {
+    func collectionViewTableViewCellDidTapCell(_ cell: CollectionViewTableViewCell, viewModel: TitlePreviewViewModel) {
+        DispatchQueue.main.async { [weak self] in
+            let vc = TitlePreviewViewController()
+           
+            vc.configure(with: viewModel)
+            self?.navigationController?.pushViewController(vc, animated: true)
+        }
+        
     }
 }
